@@ -143,9 +143,16 @@ function readTarget(p){
   var base=p.other?Math.floor(Math.pow(10,1.5+Math.random()*5.9)):p.c;
   var awake=Math.random()<0.07;
   var power=Math.max(1,Math.floor(base*(0.6+Math.random())*(awake?30:1)));
-  var lines=[],own=p.f||[],cats=DICT.slice(),i,j,t;
+  var lines=[],own=p.f||[],cats=DICT.slice(),i,j,t,a,b;
   if(awake) lines.push(['じょうたい','かくせい ちゅう！']);
-  if(own.length) lines.push(['じょうほう',pick(own)]);
+  // 本人ネタは ふだん 2つ、かくせい のときは 1つ（かくせいの ぶん 1ぎょう つかうため）
+  if(own.length>1&&!awake){
+    a=Math.floor(Math.random()*own.length);
+    b=Math.floor(Math.random()*(own.length-1)); if(b>=a) b++;
+    lines.push(['じょうほう',own[a]],['じょうほう',own[b]]);
+  }else if(own.length){
+    lines.push(['じょうほう',pick(own)]);
+  }
   for(i=cats.length-1;i>0;i--){ j=Math.floor(Math.random()*(i+1)); t=cats[i]; cats[i]=cats[j]; cats[j]=t; }
   for(i=0;i<cats.length&&lines.length<3;i++){
     if(awake&&cats[i][0]==='じょうたい') continue;
