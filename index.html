@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=600, initial-scale=1.0, user-scalable=no">
+<title>HIT SCOPE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000;overflow:hidden}
+body{width:600px;height:600px;position:relative;user-select:none;-webkit-user-select:none;
+  font-family:"Courier New",Courier,monospace;color:#f5f1e6}
+#app{position:absolute;left:0;top:0;width:600px;height:600px;overflow:hidden;cursor:pointer}
+.z{position:absolute;left:0;width:600px;text-align:center;white-space:nowrap;overflow:hidden}
+.title{top:14px;height:44px;font-size:30px;line-height:44px;font-weight:bold;color:#ffd83b;letter-spacing:2px}
+.hint{top:560px;height:28px;font-size:18px;line-height:28px;color:#6b675c}
+.row{position:absolute;left:60px;width:480px;height:48px;border:2px solid #6b675c;
+  font-size:25px;line-height:44px;padding:0 16px;white-space:nowrap;overflow:hidden;color:#f5f1e6}
+.row.on{border:4px solid #ffd83b;color:#ffd83b;line-height:40px;font-weight:bold}
+.row .r{position:absolute;right:16px;top:0}
+.note{top:466px;height:56px;font-size:19px;line-height:28px;white-space:normal;color:#f5f1e6}
+.tally{top:528px;height:26px;font-size:18px;line-height:26px;color:#ffd83b}
+.ret{position:absolute;left:170px;top:62px;width:260px;height:260px}
+.blink{animation:bl .16s steps(1) 4}
+@keyframes bl{0%{opacity:1}50%{opacity:0}100%{opacity:1}}
+.plabel{top:326px;height:22px;font-size:18px;line-height:22px;color:#6b675c}
+.num{top:346px;height:54px;font-size:46px;line-height:54px;font-weight:bold;color:#ffd83b;letter-spacing:1px}
+.num.over{color:#ff5a60;font-size:40px}
+.rank{top:402px;height:30px;font-size:22px;line-height:30px;color:#f5f1e6}
+.rank b{color:#ffd83b}
+.fl{height:26px;font-size:20px;line-height:26px;color:#f5f1e6}
+.fl i{font-style:normal;color:#6b675c}
+.cmd{position:absolute;top:526px;width:176px;height:54px;border:2px solid #6b675c;text-align:center;
+  font-size:24px;line-height:50px;color:#f5f1e6;white-space:nowrap;overflow:hidden}
+.cmd.on{border:4px solid #ffd83b;color:#ffd83b;line-height:46px;font-weight:bold}
+.big{top:336px;height:64px;font-size:50px;line-height:64px;font-weight:bold;color:#ffd83b}
+.big.ng{color:#ff5a60}
+.msg{height:34px;font-size:23px;line-height:34px;color:#f5f1e6}
+.aim{top:350px;height:80px;font-size:26px;line-height:40px;white-space:normal;color:#f5f1e6}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+
+/* ===== データ ===== */
+// 公開リポジトリに実名を載せないため、ここは架空のデモ名簿。
+// 本番の名簿は URL の #d=<base64url(JSON)> で渡す（1度読むと端末に保存）。
+// n=なまえ / c=せんとうりょくの基準値 / f=その人だけの情報
+var DEMO=[
+  {n:'たなか',c:820,f:['ねこを 3びき かっている','じきゅう 1,226えん']},
+  {n:'さとう',c:46000,f:['もと やきゅうぶ','からあげに うるさい']},
+  {n:'すずき',c:2300000,f:['かげの しゃちょう','ねんしゅう ひみつ']}
+];
+var OTHER='そのた';
+var OVER=10000000;
+
+// よみとる「せってい」の辞書（毎回ここからランダムに出る）
+var DICT=[
+ ['やくしょく',['かげの しゃちょう','ちょうろう','だいひょう とりしまられやく','えいえんの しんじん',
+   'じちかいちょう','うちゅう たんとう ぶちょう','さいこう おやつ せきにんしゃ','でんせつの アルバイト',
+   'ひしょの ひしょ','なんでも かちょう','のみかい ぶちょう','じしょう CEO','むらの ゆうしゃ','まおうの ぶか']],
+ ['おかね',['ねんしゅう 3おくえん','ねんしゅう 12まんえん','ねんしゅう こっか きみつ','ねんしゅう どんぐり 800こ',
+   'じきゅう 1,226えん','じきゅう 50まんえん','じきゅう からあげ 2こ','ちょきん 8,000ちょうえん',
+   'ちょきん 37えん','ビットコイン 0.0001まい','さいふに レシートだけ','しょじきん 500えんだま 1まい']],
+ ['けいれき',['もと うちゅうひこうし','IQ 300','なぞの たいかいで ゆうしょう','フォロワー 2おくにん',
+   'ノーベルしょう こうほ','じつは おうぞく','タイピング せかい 4い','むかし まおうを たおした',
+   'ぜんせは しばいぬ','えきまえで スカウト された','みらいから きた','3かい てんせい している']],
+ ['とくぎ',['Excel の たつじん','けんすい 200かい','かいぎを 5ふんで おわらせる','ラーメン ねんかん 400ぱい',
+   '3かこくご（2つは ほうげん）','ねなくても へいき','はやぐい','どこでも ねられる','くうきを よまない',
+   'スライドが はやい','いいわけが うまい','じゃんけん むはい']],
+ ['じゃくてん',['げつようびの あさ','からい もの','しめきり','おばけ','はやおき','じょうしの ひとこと',
+   'でんわ','まんいん でんしゃ','パクチー','けいひ せいさん','ほめられると てれる','ねこに よわい']],
+ ['じょうたい',['ねむい','はらぺこ','やるき 3%','ぜっこうちょう','ふつかよい','きんにくつう','かえりたい',
+   'おなか いっぱい','テンション MAX','きゅうりょうび まえ','ゆだん している','なにか たくらんでいる']]
+];
+var WIN=['{n}を たおした！','{n}は にげだした！','{n}は ねてしまった！','いちげきで しとめた！',
+  '{n}は あやまってきた！','{n}は ごはんを おごってくれた','はなしあいで かいけつ した','{n}は なかまに なりたそうだ'];
+var WIN2=['けいけんち 12 を てにいれた','レベルが 1 あがった','からあげ 2こ を てにいれた','500えん を てにいれた',
+  'ゆうきが 3 あがった','とくに なにも もらえなかった','きもちよく かえれる'];
+var LOSE=['{n}の デコピンで しずんだ','かえりうちに あった…','{n}に せっきょう された','きづいたら あさ だった',
+  '{n}に おごらされた','あいてに されなかった','{n}の ひとにらみで うごけない','ろんぱ された'];
+var LOSE2=['ちょきんが 37えん へった','やるきが 10 さがった','あしたは きんにくつう','からあげを うばわれた',
+  'プライドが 5 さがった','しょじきんが はんぶんに なった','でも いい けいけんに なった'];
+var FLEE_OK=['うまく にげきれた！','トイレに いくふりで にげた','{n}は きづいていない','でんわの ふりで にげた',
+  'しぜんに フェードアウト した','ぜんりょくで はしった'];
+var FLEE_NG=['{n}に つかまった','めが あってしまった','{n}に なまえを よばれた','でぐちを ふさがれた','あしが もつれた'];
+var CMDS=['たたかう','にげる','でる'];
+var P_WIN=[0,0.92,0.78,0.58,0.38,0.18,0.03];
+var P_FLEE=[0,0.97,0.9,0.8,0.65,0.5,0.25];
+
+/* ===== 状態 ===== */
+var state={mode:'list',roster:DEMO,idx:0,cur:null,t:0,cmd:0,out:null,left:0,flash:false,tally:{w:0,l:0,e:0}};
+var timer=null;
+var app=document.getElementById('app');
+
+function stop(){ if(timer){ clearInterval(timer); timer=null; } }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function comma(s){ return String(s).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+function b64d(s){
+  s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='=';
+  var b=atob(s),o='';
+  for(var i=0;i<b.length;i++) o+='%'+('00'+b.charCodeAt(i).toString(16)).slice(-2);
+  return decodeURIComponent(o);
+}
+function validRoster(r){
+  if(!r||!r.length) return null;
+  var out=[];
+  for(var i=0;i<r.length;i++){
+    var p=r[i]; if(!p||typeof p.n!=='string') continue;
+    out.push({n:p.n,c:Math.max(1,Math.floor(Number(p.c)||1)),f:(p.f&&p.f.length)?p.f.slice(0,8):[]});
+  }
+  return out.length?out:null;
+}
+function load(){
+  var r=null;
+  try{
+    var m=location.hash.match(/d=([A-Za-z0-9_\-=+\/]+)/);
+    if(m){ r=validRoster(JSON.parse(b64d(m[1]))); if(r){ try{ localStorage.setItem('hs_roster',JSON.stringify(r)); }catch(e){} } }
+  }catch(e){ r=null; }
+  if(!r){ try{ r=validRoster(JSON.parse(localStorage.getItem('hs_roster'))); }catch(e){ r=null; } }
+  if(r) state.roster=r;
+  try{ var t=JSON.parse(localStorage.getItem('hs_tally')); if(t&&typeof t.w==='number') state.tally={w:t.w||0,l:t.l||0,e:t.e||0}; }catch(e){}
+}
+function saveTally(){ try{ localStorage.setItem('hs_tally',JSON.stringify(state.tally)); }catch(e){} }
+
+function entries(){ return state.roster.concat([{n:OTHER,other:true}]); }
+
+function rankOf(c){
+  if(c>=OVER)    return {r:'S',lv:6,msg:'けいそく ふのう'};
+  if(c>=1000000) return {r:'A',lv:5,msg:'でんせつ きゅう'};
+  if(c>=100000)  return {r:'B',lv:4,msg:'つわもの'};
+  if(c>=10000)   return {r:'C',lv:3,msg:'なかなか やる'};
+  if(c>=1000)    return {r:'D',lv:2,msg:'ちょっと つよい'};
+  return {r:'E',lv:1,msg:'いっぱんじん'};
+}
+
+// クリックした瞬間の「せってい」をよみとる（毎回ちがう結果になる）
+function readTarget(p){
+  var base=p.other?Math.floor(Math.pow(10,1.5+Math.random()*5.9)):p.c;
+  var awake=Math.random()<0.07;
+  var power=Math.max(1,Math.floor(base*(0.6+Math.random())*(awake?30:1)));
+  var lines=[],own=p.f||[],cats=DICT.slice(),i,j,t;
+  if(awake) lines.push(['じょうたい','かくせい ちゅう！']);
+  if(own.length) lines.push(['じょうほう',pick(own)]);
+  for(i=cats.length-1;i>0;i--){ j=Math.floor(Math.random()*(i+1)); t=cats[i]; cats[i]=cats[j]; cats[j]=t; }
+  for(i=0;i<cats.length&&lines.length<3;i++){
+    if(awake&&cats[i][0]==='じょうたい') continue;
+    lines.push([cats[i][0],pick(cats[i][1])]);
+  }
+  return {n:p.other?('なぞの ひと '+(100+Math.floor(Math.random()*900))):p.n,c:power,lines:lines};
+}
+
+/* ===== 遷移 ===== */
+function go(mode){ stop(); state.mode=mode; render(); }
+function startScan(){
+  stop();
+  state.cur=readTarget(entries()[state.idx]);
+  state.mode='scan'; state.t=0;
+  timer=setInterval(function(){
+    if(state.mode!=='scan'){ stop(); return; }
+    state.t+=50;
+    if(state.t>=2300){ finish(); return; }
+    render();
+  },50);
+  render();
+}
+function finish(){ stop(); state.mode='result'; state.cmd=0; state.flash=true; render(); }
+function fill(s){ return s.replace('{n}',state.cur.n); }
+function act(){
+  var lv=rankOf(state.cur.c).lv,o;
+  if(state.cmd===2){ go('list'); return; }
+  if(state.cmd===0){
+    if(Math.random()<P_WIN[lv]){ state.tally.w++; o={head:'かった！',ng:false,l1:fill(pick(WIN)),l2:pick(WIN2)}; }
+    else{ state.tally.l++; o={head:'まけた…',ng:true,l1:fill(pick(LOSE)),l2:pick(LOSE2)}; }
+  }else{
+    if(Math.random()<P_FLEE[lv]){ state.tally.e++; o={head:'にげきった！',ng:false,l1:fill(pick(FLEE_OK)),l2:''}; }
+    else{ state.tally.l++; o={head:'にげられない！',ng:true,l1:fill(pick(FLEE_NG)),l2:pick(LOSE2)}; }
+  }
+  saveTally();
+  stop();
+  state.out=o; state.mode='outcome'; state.left=5; state.flash=true;
+  timer=setInterval(function(){
+    if(state.mode!=='outcome'){ stop(); return; }
+    state.left--;
+    if(state.left<=0){ go('list'); return; }
+    var el=document.getElementById('cd'); if(el) el.textContent=cdText();
+  },1000);
+  render();
+}
+function cdText(){ return state.left+'びょうご に なまえ せんたくへ もどる'; }
+
+/* ===== 描画 ===== */
+function reticle(scale,color,blink){
+  var c=color||'#ffd83b';
+  return '<svg class="ret'+(blink?' blink':'')+'" viewBox="0 0 320 320" style="transform:scale('+scale+')">'
+    +'<g fill="none" stroke="'+c+'" stroke-width="5" stroke-linecap="square">'
+    +'<path d="M10 70V10H70"/><path d="M250 10H310V70"/><path d="M310 250V310H250"/><path d="M70 310H10V250"/>'
+    +'</g><g fill="none" stroke="'+c+'" stroke-width="3">'
+    +'<circle cx="160" cy="160" r="118"/>'
+    +'<path d="M160 22V52M160 268V298M22 160H52M268 160H298"/>'
+    +'</g></svg>';
+}
+function bars(lv){ var s=''; for(var i=0;i<5;i++) s+=(i<lv?'■':'□'); return s; }
+function rollText(){
+  var c=state.cur.c, over=c>=OVER;
+  if(state.t<800) return 'ロック ちゅう';
+  var ds=over?'00000000':String(c), L=ds.length;
+  var p=Math.min(1,(state.t-800)/1500), fixed=over?0:Math.floor(p*L), o='';
+  for(var i=0;i<L;i++) o+=(i<fixed)?ds.charAt(i):String(Math.floor(Math.random()*10));
+  return comma(o);
+}
+function render(){
+  var h='',i,m=state.mode,c=state.cur,t=state.tally;
+  if(m==='list'){
+    var es=entries(),n=es.length,top=Math.max(0,Math.min(state.idx-3,n-7));
+    h+='<div class="z title">HIT SCOPE</div>';
+    for(i=top;i<Math.min(n,top+7);i++){
+      h+='<div class="row'+(i===state.idx?' on':'')+'" data-i="'+i+'" style="top:'+(66+(i-top)*56)+'px">'
+        +(i===state.idx?'▶ ':'  ')+esc(es[i].n)+(es[i].other?'<span class="r">？？？</span>':'')+'</div>';
+    }
+    h+='<div class="z note">せっていは クリックした しゅんかんに よみとる<br>おなじ ひとでも まいかい かわる</div>';
+    h+='<div class="z tally">'+t.w+'しょう '+t.l+'はい ／ にげた '+t.e+'かい</div>';
+    h+='<div class="z hint">↑↓ えらぶ ／ クリック けってい</div>';
+  }else if(m==='aim'){
+    h+='<div class="z title">'+esc(entries()[state.idx].n)+'</div>';
+    h+=reticle(1,'#ffd83b',false);
+    h+='<div class="z aim">ターゲットを わくに いれて<br>クリック</div>';
+    h+='<div class="z hint">クリック けいそく ／ なかゆび もどる</div>';
+  }else if(m==='scan'){
+    var sc=state.t<800?(1.4-0.4*(state.t/800)):1;
+    h+='<div class="z title">'+esc(c.n)+'</div>';
+    h+=reticle(sc.toFixed(3),'#ffd83b',false);
+    h+='<div class="z plabel">せんとうりょく</div>';
+    h+='<div class="z num">'+rollText()+'</div>';
+    h+='<div class="z rank">せってい よみとり ちゅう…</div>';
+  }else if(m==='result'){
+    var rk=rankOf(c.c),over=c.c>=OVER;
+    h+='<div class="z title">'+esc(c.n)+'</div>';
+    h+=reticle(1,over?'#ff5a60':'#ffd83b',state.flash);
+    h+='<div class="z plabel">せんとうりょく</div>';
+    h+='<div class="z num'+(over?' over':'')+'">'+(over?'けいそく ふのう':comma(c.c))+'</div>';
+    h+='<div class="z rank">ランク <b>'+rk.r+'</b> '+bars(rk.lv)+' '+rk.msg+'</div>';
+    for(i=0;i<c.lines.length;i++){
+      h+='<div class="z fl" style="top:'+(438+i*27)+'px"><i>'+esc(c.lines[i][0])+'：</i>'+esc(c.lines[i][1])+'</div>';
+    }
+    for(i=0;i<3;i++){
+      h+='<div class="cmd'+(i===state.cmd?' on':'')+'" data-c="'+i+'" style="left:'+(24+i*188)+'px">'
+        +(i===state.cmd?'▶':'')+CMDS[i]+'</div>';
+    }
+    state.flash=false;
+  }else if(m==='outcome'){
+    var o=state.out;
+    h+='<div class="z title">'+esc(c.n)+'</div>';
+    h+=reticle(1,o.ng?'#ff5a60':'#ffd83b',state.flash);
+    h+='<div class="z big'+(o.ng?' ng':'')+'">'+o.head+'</div>';
+    h+='<div class="z msg" style="top:410px">'+esc(o.l1)+'</div>';
+    h+='<div class="z msg" style="top:446px">'+esc(o.l2)+'</div>';
+    h+='<div class="z tally" style="top:500px">'+t.w+'しょう '+t.l+'はい ／ にげた '+t.e+'かい</div>';
+    h+='<div class="z hint" id="cd">'+cdText()+'</div>';
+    state.flash=false;
+  }
+  app.innerHTML=h;
+}
+
+/* ===== 入力 ===== */
+function key(k){
+  var n;
+  if(state.mode==='list'){
+    n=entries().length;
+    if(k==='ArrowUp'){ state.idx=(state.idx+n-1)%n; render(); }
+    else if(k==='ArrowDown'){ state.idx=(state.idx+1)%n; render(); }
+    else if(k==='Enter'){ go('aim'); }
+    return;
+  }
+  if(state.mode==='aim'){
+    if(k==='Enter') startScan();
+    else if(k==='Escape') go('list');
+    return;
+  }
+  if(state.mode==='scan'){
+    if(k==='Enter') finish();
+    else if(k==='Escape') go('list');
+    return;
+  }
+  if(state.mode==='result'){
+    if(k==='ArrowRight'||k==='ArrowDown'){ state.cmd=(state.cmd+1)%3; render(); }
+    else if(k==='ArrowLeft'||k==='ArrowUp'){ state.cmd=(state.cmd+2)%3; render(); }
+    else if(k==='Enter') act();
+    else if(k==='Escape') go('list');
+    return;
+  }
+  if(state.mode==='outcome'){
+    if(k==='Enter'||k==='Escape') go('list');
+    return;
+  }
+}
+window.addEventListener('keydown',function(e){
+  var k=e.key;
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter','Escape',' '].indexOf(k)>=0) e.preventDefault();
+  if(k===' ') k='Enter';
+  key(k);
+});
+// PC・スマホ検証用のタップ操作
+app.addEventListener('click',function(e){
+  var t=e.target;
+  while(t&&t!==app){
+    if(t.getAttribute){
+      if(state.mode==='list'&&t.getAttribute('data-i')!==null){ state.idx=Number(t.getAttribute('data-i')); key('Enter'); return; }
+      if(state.mode==='result'&&t.getAttribute('data-c')!==null){ state.cmd=Number(t.getAttribute('data-c')); key('Enter'); return; }
+    }
+    t=t.parentNode;
+  }
+  key('Enter');
+});
+
+load();
+render();
+})();
+</script>
+</body>
+</html>
